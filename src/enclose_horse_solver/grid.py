@@ -48,13 +48,24 @@ class GridCell:
     )
 
     @classmethod
-    def create_grid_cell(cls: type[T], symbol: str) -> T:
+    def determine_type(cls, symbol: str) -> GridCellType:
         cell_type = cls._GRID_SYMBOLS.get(symbol)
-        if cell_type is not None:
-            return cls(type_=cell_type)
-        if symbol.isdigit():
-            return cls(type_=GridCellType.PORTAL, portal_group=int(symbol))
-        raise ValueError(f"Unrecognizable grid symbol: {symbol}")
+        if cell_type is None:
+            if symbol.isdigit():
+                cell_type = GridCellType.PORTAL
+            raise ValueError(f"Unrecognizable grid symbol: {symbol}")
+        return cell_type
+
+    @classmethod
+    def create_grid_cell(cls: type[T], symbol: str) -> T:
+        cell_type = cls.determine_type(symbol=symbol)
+        if cell_type is GridCellType.PORTAL:
+            if not symbol.isdigit():
+                raise ValueError(
+                    f"Cell recognized as {cell_type} but is not and integer"
+                )
+            return cls(type_=cell_type, portal_group=int(symbol))
+        return cls(type_=cell_type)
 
     @property
     def is_enclosable(self) -> bool:
