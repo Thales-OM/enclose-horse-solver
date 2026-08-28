@@ -35,7 +35,7 @@ repos:
           - --strict
           - --explicit-package-bases
           - --namespace-packages
-          - --warn_unused_ignores = true
+          - --warn-unused-ignores
 
 ci:
   autofix_prs: false
