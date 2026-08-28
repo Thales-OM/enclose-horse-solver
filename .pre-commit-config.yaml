@@ -28,20 +28,14 @@ repos:
       - id: mypy
         additional_dependencies:
           - click
-          - fastapi
-          - gitpython
-          - keyring
-          - pydantic[types]
-          - pydantic-settings
           - pytest
-          - requests
-          - types-requests
-          - uvicorn
-          - watchdog
+          - pulp
+          - frozendict
         args:
           - --strict
           - --explicit-package-bases
           - --namespace-packages
+          - --warn_unused_ignores = true
 
 ci:
   autofix_prs: false
