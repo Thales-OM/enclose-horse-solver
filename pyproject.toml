@@ -14,15 +14,15 @@ dependencies = [
 ]
 
 [project.scripts]
-horse-cli = "src.cli:cli"
+horse-cli = "enclose_horse_solver.cli:cli"
 
 [build-system]
 requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"] 
-include = ["enclose_horse_solver*"] 
+where = ["src"]
+include = ["enclose_horse_solver*"]
 
 [tool.black]
 line-length = 88
