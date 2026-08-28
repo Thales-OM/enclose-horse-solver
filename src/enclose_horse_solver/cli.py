@@ -1,55 +1,13 @@
 import click
 import io
 import os
-import sys
 from typing import Iterator, Tuple, Union, Generator, List
-from .solvers.standard import standard_solver
-from .solvers.base import BaseSolverOuput
+from .solvers.standard import StandardSolver
+from .solvers.base import SolverContext
+from .input.args import WallCostType
+from .input.grid import InputType, GridInput
 
-
-def draw_grid(solver_output: BaseSolverOuput) -> None:
-    grid = [
-        ["🌱" for _ in range(solver_output.grid_width)]
-        for _ in range(solver_output.grid_height)
-    ]
-    for wall in solver_output.result.walls_to_place:
-        grid[wall[0]][wall[1]] = "🧱"
-    for enclosure in solver_output.result.enclosed_tiles:
-        grid[enclosure[0]][enclosure[1]] = "🔆"
-    grid[solver_output.horse[0]][solver_output.horse[1]] = "🐴"
-    output = "\n".join(" ".join([cell for cell in row]) for row in grid)
-    print(output)
-
-
-class WallCostType(click.ParamType):  # type: ignore[type-arg]
-    """Parses wall cost as int or comma-separated ints."""
-
-    name = "wall_cost"
-
-    def convert(  # type: ignore[no-untyped-def]
-        self, value, param, ctx
-    ) -> int | Tuple[int, ...]:
-        if isinstance(value, (int, tuple)):
-            return value
-
-        value = str(value).strip()
-        if "," in value:
-            parts = value.split(",")
-            try:
-                costs = tuple(int(p.strip()) for p in parts)
-            except ValueError:
-                self.fail(f"Invalid wall cost format: {value}", param, ctx)
-            if any(c < 0 for c in costs):
-                self.fail("All wall costs must be >= 0", param, ctx)
-            return costs
-        else:
-            try:
-                cost = int(value)
-            except ValueError:
-                self.fail(f"Invalid wall cost: {value}", param, ctx)
-            if cost < 0:
-                self.fail(f"Wall cost must be >= 0, got {cost}", param, ctx)
-            return cost
+INPUT_TYPE_CHOICES = ["string", "file", "stdin", "interactive", "auto"]
 
 
 def stream_grid_lines(lines: Iterator[str]) -> Iterator[List[str]]:
@@ -128,6 +86,22 @@ def cli(ctx: click.Context) -> None:
 @cli.group(name="solve", invoke_without_command=True)
 @click.argument("input_data", required=False)
 @click.option(
+    "-t",
+    "--input-type",
+    type=click.Choice(INPUT_TYPE_CHOICES, case_sensitive=False),
+    default="auto",
+    show_default=True,
+    help=(
+        "How to interpret INPUT_DATA:\n"
+        "  string      - treat INPUT_DATA as a literal grid string\n"
+        "  file        - treat INPUT_DATA as a path to a grid file\n"
+        "  stdin       - ignore INPUT_DATA, read grid from stdin\n"
+        "  interactive - ignore INPUT_DATA, prompt for grid line by line\n"
+        "  auto        - detect from INPUT_DATA (file if path exists, "
+        "else string; if INPUT_DATA is omitted, interactive)"
+    ),
+)
+@click.option(
     "-w",
     "--walls",
     required=True,
@@ -145,47 +119,41 @@ def cli(ctx: click.Context) -> None:
 def solve_group(
     ctx: click.Context,
     input_data: str | None,
+    input_type: InputType,
     walls: int,
     wall_cost: Union[int, Tuple[int, ...]],
 ) -> None:
     """Solve the enclose horse problem."""
     ctx.ensure_object(dict)
 
+    # Validate wall_cost length if it's a sequence
     if isinstance(wall_cost, tuple) and len(wall_cost) != walls:
         raise click.BadParameter(
             f"wall-cost length ({len(wall_cost)}) must equal walls ({walls})"
         )
 
+    # Build GridInput with explicit mode
     try:
-        if input_data is None:
-            grid_stream = get_grid_stream_interactive()
-        elif input_data == "-":
-            grid_stream = stream_grid_lines(sys.stdin)
-        elif os.path.isfile(input_data):
-            grid_stream = get_grid_stream_from_file(input_data)
-        else:
-            grid_stream = get_grid_stream_from_string(input_data)
+        grid_input = GridInput(input_data, mode=input_type)
     except click.BadParameter as e:
         raise click.UsageError(str(e))
 
-    ctx.obj["grid_stream"] = grid_stream
+    # Store in context
+    ctx.obj["grid_input"] = grid_input
+    ctx.obj["input_type"] = input_type
     ctx.obj["walls"] = walls
     ctx.obj["wall_cost"] = wall_cost
 
     if ctx.invoked_subcommand is not None:
         return
 
-    # Default solver
-    click.echo(f"🔮 Running default solver with {walls} walls...")
-
-    result = standard_solver(
-        input_lines=grid_stream, max_walls=walls, wall_costs=wall_cost
+    solution = StandardSolver().solve(
+        context=SolverContext(
+            grid_rows=grid_input.iter_rows(), max_walls=walls, wall_costs=wall_cost
+        )
     )
-    print(result.result)
-    print()
-    print("Grid:")
-    draw_grid(solver_output=result)
-    click.echo("✓ Processed rows")
+
+    click.echo(str(solution))
 
 
 # @solve_group.command(name="example")

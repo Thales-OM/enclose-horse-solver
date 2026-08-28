@@ -47,6 +47,18 @@ class GridCell:
         }
     )
 
+    _CELL_DISPLAY_SYMBOLS: ClassVar[frozendict[GridCellType, str]] = frozendict(
+        {
+            GridCellType.GRASS: "🌱",
+            GridCellType.CHERRY: "🍒",
+            GridCellType.APPLE: "🍎",
+            GridCellType.BEES: "🐝",
+            GridCellType.HORSE: "🐴",
+            GridCellType.WATER: "🌊",
+            GridCellType.PORTAL: "🌀",
+        }
+    )
+
     @classmethod
     def determine_type(cls, symbol: str) -> GridCellType:
         cell_type = cls._GRID_SYMBOLS.get(symbol)
@@ -94,3 +106,14 @@ class GridCell:
                 f"Cannot determine points value for a grid cell type = {self.type_}"
             )
         return points
+
+    @classmethod
+    def get_display_symbol(
+        cls, type_: GridCellType, portal_group: int | None = None
+    ) -> str:
+        dsymbol = cls._CELL_DISPLAY_SYMBOLS.get(type_)
+        if dsymbol is None:
+            raise ValueError(
+                f"Cannot determine display symbol for grid cell type: {type_}"
+            )
+        return dsymbol
