@@ -117,6 +117,26 @@ def solve_weighted_enclose_horse(
         E[tile] * enclosure_weights.get(tile, 1) for tile in all_tiles
     ) - pulp.lpSum(idx_wall_costs[k] * y[k] for k in range(len(idx_wall_costs)))
 
+    # Walkable adjacency (portals included), water/not-enclosable cells
+    # are excluded: they are natural barriers and block the horse for free.
+    adjacency: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+    for x, y in all_tiles:
+        neighbors = []
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < grid_height and 0 <= ny < grid_width:
+                if (nx, ny) not in not_enclosable:
+                    neighbors.append((nx, ny))
+
+        neighbors.extend(non_neighbour_movements.get((x, y), tuple()))
+
+        adjacency[(x, y)] = neighbors
+
+    reverse_adjacency: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+    for tile, neighbors in adjacency.items():
+        for neighbor in neighbors:
+            reverse_adjacency.setdefault(neighbor, list()).append(tile)
+
     # 4. Apply tile-specific constraints
     # Constraint A: Horse rules
     prob += E[horse_pos] == 1
@@ -127,6 +147,9 @@ def solve_weighted_enclose_horse(
         if (x, y) in cannot_place_walls:
             prob += W[(x, y)] == 0
 
+        # A tile cannot be both a wall and enclosed at the same time
+        prob += W[(x, y)] + E[(x, y)] <= 1
+
         if (x, y) in not_enclosable:
             prob += E[(x, y)] == 0
             continue
@@ -136,33 +159,72 @@ def solve_weighted_enclose_horse(
             prob += E[(x, y)] == 0
             continue
 
-        # Constraint D: Flow/Adjacency Logic
-        neighbors = []
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < grid_height and 0 <= ny < grid_width:
-                neighbors.append((nx, ny))
-
-        neighbors.extend(non_neighbour_movements.get((x, y), tuple()))
-
-        for nx, ny in neighbors:
+        # Constraint D: Touch/Adjacency Logic.
+        # If tile (x, y) is enclosed, any walkable neighbour it can touch
+        # must be enclosed as well unless that neighbour is a wall.
+        for nx, ny in adjacency[(x, y)]:
             prob += E[(x, y)] - E[(nx, ny)] <= W[(nx, ny)]
+
+    # Constraint E: Single-commodity flow from the horse.
+    # Score only counts tiles the horse can actually reach, so the enclosed
+    # region must be one connected component. The horse supplies one unit of
+    # flow per enclosed tile except its own; a flow edge can only carry on
+    # enclosed (reachable) tiles; every other enclosed tile consumes one unit.
+    flow_k = grid_width * grid_height
+    flow_edges = [
+        (tile, neighbor)
+        for tile in all_tiles
+        for neighbor in adjacency[tile]
+        if tile != neighbor
+    ]
+    flow = pulp.LpVariable.dicts(
+        "Flow", flow_edges, lowBound=0, upBound=flow_k, cat="Integer"
+    )
+
+    for (tile_from, tile_to), f in flow.items():
+        prob += f <= flow_k * E[tile_from]
+        prob += f <= flow_k * E[tile_to]
+
+    for tile in all_tiles:
+        if tile in not_enclosable:
+            continue
+        inflow = pulp.lpSum(
+            flow[(tile_from, tile)]
+            for tile_from in reverse_adjacency.get(tile, tuple())
+        )
+        outflow = pulp.lpSum(flow[(tile, tile_to)] for tile_to in adjacency[tile])
+
+        if tile == horse_pos:
+            prob += outflow - inflow == pulp.lpSum(E[t] for t in all_tiles) - 1
+        else:
+            prob += inflow - outflow == E[tile]
 
     # 5. Execute Solver
     prob.solve(pulp.PULP_CBC_CMD(msg=False))
 
-    # 6. Extract Results
-    # Add tolerance just to be sure
-    wall_locations = [tile for tile in all_tiles if pulp.value(W[tile]) >= 0.5]
-    enclosed_tiles = [tile for tile in all_tiles if pulp.value(E[tile]) >= 0.5]
+    # 6. Extract Results.
+    # The problem can be infeasible (e.g. not enough walls to seal the
+    # horse in), in which case variable values are meaningless.
+    if prob.status == pulp.LpStatusOptimal:
+        # Add tolerance just to be sure
+        wall_locations = [tile for tile in all_tiles if pulp.value(W[tile]) >= 0.5]
+        enclosed_tiles = [tile for tile in all_tiles if pulp.value(E[tile]) >= 0.5]
 
-    # Recalculate score using the weights to verify
-    total_score = sum(enclosure_weights.get(tile, 1) for tile in enclosed_tiles)
+        # Recalculate score using the weights to verify.
+        # Walls used are the first `n` of the marginal costs, matching the
+        # objective function.
+        total_weight = sum(enclosure_weights.get(tile, 1) for tile in enclosed_tiles)
+        total_cost = sum(idx_wall_costs[k] for k in range(len(wall_locations)))
+        max_score = int(total_weight - total_cost)
+    else:
+        wall_locations = []
+        enclosed_tiles = []
+        max_score = 0
 
     return EnclosureResult(
         status=prob.status,
         status_desc=pulp.LpStatus[prob.status],
-        max_score=int(total_score),
+        max_score=max_score,
         walls_to_place=wall_locations,
         enclosed_tiles=enclosed_tiles,
     )
