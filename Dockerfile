@@ -26,4 +26,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 COPY . .
 ENTRYPOINT ["python", "-m", "src.cli"]
+# Call help by default
+# Pass command upon container run to trigger the requested command
 CMD [ "--help" ]
