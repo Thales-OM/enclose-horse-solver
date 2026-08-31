@@ -73,9 +73,11 @@ class GridInput:
         Validates rectangular shape and no consecutive spaces.
         """
         expected_width = None
+        expected_height = 0
 
         with self._get_line_iterator() as line_iterator:
             for line_num, raw_line in enumerate(line_iterator):
+                expected_height += 1
                 line = raw_line.rstrip("\n\r")
                 if not line:
                     continue
@@ -102,7 +104,7 @@ class GridInput:
             raise click.BadParameter("Empty grid")
 
         self._width = expected_width
-        self._height = line_num
+        self._height = expected_height
 
     def iter_rows(self) -> Iterator[List[str]]:
         """
