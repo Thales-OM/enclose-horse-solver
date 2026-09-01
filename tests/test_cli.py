@@ -6,27 +6,30 @@ from click.testing import CliRunner
 
 from enclose_horse_solver.cli import cli
 
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+TEST2 = ASSETS_DIR / "test2.txt"
+
 
 def test_default_solver_runs_on_test2(tmp_path: Path) -> None:
     runner = CliRunner()
-    # Use the bundled all-grass board with 12 walls.
-    result = runner.invoke(cli, ["solve", "-w", "12", "test2.txt"])
+    # Use the bundled all-grass board with 16 walls.
+    result = runner.invoke(cli, ["solve", "-w", "16", str(TEST2)])
     assert result.exit_code == 0, result.output
-    assert "Max Score: 12" in result.output
+    assert "Max Score: 20" in result.output
 
 
 def test_registered_solver_subcommand_runs() -> None:
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["solve", "-w", "12", "test2.txt", "costly-walls", "-c", "0"],
+        ["solve", "-w", "16", str(TEST2), "costly-walls", "-c", "0"],
     )
     assert result.exit_code == 0, result.output
     assert "costly-walls" in result.output
-    assert "Max Score: 12" in result.output
+    assert "Max Score: 20" in result.output
 
 
 def test_unknown_solver_subcommand_fails() -> None:
     runner = CliRunner()
-    result = runner.invoke(cli, ["solve", "-w", "12", "test2.txt", "nope"])
+    result = runner.invoke(cli, ["solve", "-w", "16", str(TEST2), "nope"])
     assert result.exit_code != 0

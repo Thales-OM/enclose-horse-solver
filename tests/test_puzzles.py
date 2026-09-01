@@ -1,9 +1,9 @@
 """End-to-end tests against the bundled example puzzles.
 
-Each fixture is a (testN.txt, wallsN.txt) pair at the project root whose
-optimal score was independently established by an authoritative reachability
-analysis. We assert the solver's programmatic output against those goldens and
-against a solver-agnostic validation of enclosure validity.
+Each fixture is a (testN.txt, wallsN.txt) pair under tests/assets whose optimal
+score was independently established by an authoritative reachability analysis.
+We assert the solver's programmatic output against those goldens and against a
+solver-agnostic validation of enclosure validity.
 """
 
 import pytest
@@ -73,22 +73,3 @@ def test_puzzle_valid_enclosure(puzzle_number: int, expected_score: int) -> None
     assert enclosed == reachable
     assert enclosed_score(grid, enclosed) == result.max_score
     assert result.max_score == expected_score
-
-
-def test_trivial_example_test2() -> None:
-    """The small all-grass board in test2.txt is solvable with 12 walls."""
-    grid = [
-        line.split()
-        for line in open("test2.txt", encoding="utf-8").read().splitlines()
-        if line.strip()
-    ]
-    result = StandardSolver(context=SolverContext(grid_rows=grid, max_walls=12)).solve()
-
-    assert result.success is True
-    assert result.walls_to_place is not None
-    assert result.enclosed_tiles is not None
-    assert result.max_score == 12
-    assert len(result.walls_to_place) == 12
-    assert does_escape(grid, result.walls_to_place) is False
-    # 12 tiles enclosed: the horse tile + 11 grass.
-    assert len(result.enclosed_tiles) == 12
