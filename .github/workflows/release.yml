@@ -16,6 +16,9 @@ jobs:
   docker:
     name: Docker image -> GHCR
     runs-on: ubuntu-latest
+    # Only push the image once everything else built: otherwise a failed
+    # binary/package build would still publish a GHCR image for the tag.
+    needs: [executables, package]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -69,17 +72,19 @@ jobs:
       - name: Build CLI binary
         run: >
           pyinstaller --onefile --clean --noconfirm --paths src
-          --name horse-solver-${{ matrix.osname }}-x64
-          src/enclose_horse_solver/cli.py
+          --collect-submodules enclose_horse_solver --collect-all pulp
+          --name horse-solver-${{ matrix.osname }}-x64 entrypoint.py
         shell: bash
       - name: Smoke test binary
         shell: bash
         run: |
+          export PYTHONIOENCODING=utf-8
           BIN="dist/horse-solver-${{ matrix.osname }}-x64"
           if [ "${{ matrix.osname }}" = "windows" ]; then
             BIN="$BIN.exe"
           fi
           "$BIN" --help
+          "$BIN" solve -w 16 tests/assets/test2.txt | grep "Max Score: 20"
       - uses: actions/upload-artifact@v4
         with:
           name: horse-solver-${{ matrix.osname }}-x64
@@ -98,6 +103,13 @@ jobs:
         run: pip install -e . build
       - name: Build sdist and wheel
         run: python -m build
+      - name: Smoke test package
+        shell: bash
+        run: |
+          python -m venv /tmp/henv
+          /tmp/henv/bin/pip install --quiet dist/*.whl
+          /tmp/henv/bin/horse-cli --help
+          /tmp/henv/bin/horse-cli solve -w 16 tests/assets/test2.txt | grep "Max Score: 20"
       - uses: actions/upload-artifact@v4
         with:
           name: python-package
