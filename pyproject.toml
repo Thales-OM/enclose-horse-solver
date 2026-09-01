@@ -1,6 +1,6 @@
 [project]
 name = "enclose-horse-solver"
-version = "0.1.0"
+version = "1.0.0"
 description = "CLI tool to find perfect solution to a daily https://enclose.horse/ game"
 authors = [
     {name = "pugin.ilya",email = "pugin.ilya@rwb.ru"}
