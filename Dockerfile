@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir poetry==2.4.1
 
 COPY pyproject.toml poetry.lock ./
+COPY src ./src
 
-RUN poetry install --no-root --only main
+RUN poetry install --only main
 
 FROM python:3.11-slim AS runtime
 WORKDIR /app
@@ -24,8 +25,11 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY . .
-ENTRYPOINT ["python", "-m", "src.cli"]
+# The project package lives under src/; copy it from the builder so the venv's
+# editable install of enclose_horse_solver resolves to a matching path.
+COPY --from=builder /app/src ./src
+
+ENTRYPOINT ["python", "-m", "enclose_horse_solver.cli"]
 # Call help by default
 # Pass command upon container run to trigger the requested command
 CMD [ "--help" ]
