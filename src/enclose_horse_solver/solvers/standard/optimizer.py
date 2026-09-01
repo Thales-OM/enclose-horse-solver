@@ -1,6 +1,6 @@
 from typing import Sequence, Tuple, Dict, Iterable, List, Mapping
 from dataclasses import dataclass
-import pulp  # type: ignore[import-untyped]
+import pulp
 
 
 @dataclass(frozen=True)

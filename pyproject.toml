@@ -42,3 +42,9 @@ strict = true
 namespace_packages = true
 explicit_package_bases = true
 warn_unused_ignores = true
+mypy_path = ["src", "."]
+
+# Tests import the installed HTTP client and other loosely-typed dev deps.
+[[tool.mypy.overrides]]
+module = ["pulp"]
+ignore_missing_imports = true
