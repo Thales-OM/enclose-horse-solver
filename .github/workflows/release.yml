@@ -57,37 +57,56 @@ jobs:
             osname: linux
           - os: windows-latest
             osname: windows
+          - os: macos-latest
+            osname: macos
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install dependencies and PyInstaller
-        run: pip install -r requirements.txt pyinstaller
+        run: pip install -e . pyinstaller
       - name: Build CLI binary
         run: >
-          pyinstaller --onefile --clean --noconfirm --paths .
-          --name horse-solver-${{ matrix.osname }}-x64 src/cli.py
+          pyinstaller --onefile --clean --noconfirm --paths src
+          --name horse-solver-${{ matrix.osname }}-x64
+          src/enclose_horse_solver/cli.py
         shell: bash
-      - name: Smoke test binaries
+      - name: Smoke test binary
         shell: bash
         run: |
           BIN="dist/horse-solver-${{ matrix.osname }}-x64"
-          SRV="dist/horse-solver-server-${{ matrix.osname }}-x64"
           if [ "${{ matrix.osname }}" = "windows" ]; then
-            BIN="$BIN.exe"; SRV="$SRV.exe"
+            BIN="$BIN.exe"
           fi
-          "$BIN" --version
-          "$SRV" --help
+          "$BIN" --help
       - uses: actions/upload-artifact@v4
         with:
           name: horse-solver-${{ matrix.osname }}-x64
           path: dist/*
           if-no-files-found: error
 
+  package:
+    name: Python package (sdist + wheel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build backend
+        run: pip install -e . build
+      - name: Build sdist and wheel
+        run: python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/*
+          if-no-files-found: error
+
   release:
     name: GitHub release
-    needs: [docker, executables]
+    needs: [docker, executables, package]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -95,6 +114,10 @@ jobs:
           pattern: horse-solver-*
           path: artifacts
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package
+          path: artifacts
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
