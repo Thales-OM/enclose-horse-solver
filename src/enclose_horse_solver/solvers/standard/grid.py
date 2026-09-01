@@ -64,7 +64,7 @@ class GridCell:
         cell_type = cls._GRID_SYMBOLS.get(symbol)
         if cell_type is None:
             if symbol.isdigit():
-                cell_type = GridCellType.PORTAL
+                return GridCellType.PORTAL
             raise ValueError(f"Unrecognizable grid symbol: {symbol}")
         return cell_type
 
