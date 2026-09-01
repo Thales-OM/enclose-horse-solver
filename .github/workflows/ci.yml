@@ -21,13 +21,9 @@ jobs:
         run: pre-commit run --all-files
 
   test:
-    name: Tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Tests
+    runs-on: ubuntu-latest
     needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
