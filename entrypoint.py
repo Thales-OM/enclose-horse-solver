@@ -14,10 +14,10 @@ import sys
 from enclose_horse_solver.cli import cli
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(  # pyright: ignore[reportAttributeAccessIssue]
+    sys.stdout.reconfigure(  # type: ignore[union-attr]
         encoding="utf-8", errors="replace"
     )
-    sys.stderr.reconfigure(  # pyright: ignore[reportAttributeAccessIssue]
+    sys.stderr.reconfigure(  # type: ignore[union-attr]
         encoding="utf-8", errors="replace"
     )
     cli()
