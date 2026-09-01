@@ -1,0 +1,3 @@
+from ..standard.optimizer import solve_weighted_enclose_horse
+
+solve_costly_walls_problem = solve_weighted_enclose_horse

@@ -1,0 +1,50 @@
+[project]
+name = "enclose-horse-solver"
+version = "0.1.0"
+description = "CLI tool to find perfect solution to a daily https://enclose.horse/ game"
+authors = [
+    {name = "pugin.ilya",email = "pugin.ilya@rwb.ru"}
+]
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "click (>=8.5.0,<9.0.0)",
+    "frozendict (>=2.4.7,<3.0.0)",
+    "pulp (>=3.3.2,<4.0.0)"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)",
+    "pre-commit (>=4.6.2,<5.0.0)",
+    "black (>=26.5.1,<27.0.0)",
+    "flake8 (>=7.3.0,<8.0.0)"
+]
+
+[project.scripts]
+horse-cli = "enclose_horse_solver.cli:cli"
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["enclose_horse_solver*"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+warn_unused_ignores = true
+mypy_path = ["src", "."]
+
+# Tests import the installed HTTP client and other loosely-typed dev deps.
+[[tool.mypy.overrides]]
+module = ["pulp"]
+ignore_missing_imports = true
