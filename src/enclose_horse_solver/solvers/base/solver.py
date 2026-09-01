@@ -1,0 +1,28 @@
+from abc import ABC, abstractmethod
+from .context import SolverContext
+from .output import BaseSolverOuput
+from .meta import SolverMeta
+
+
+class BaseSolver(ABC, metaclass=SolverMeta):
+    """
+    Base class for all horse problem solvers.
+
+    Each final Solver implementation MUST:
+      - Inherit from BaseSolver
+      - Pass a distinct `solver_name: str` along with BaseSolver base class
+        (e.g. `MySolver(BaseSolver, solver_name="my_solver")`).
+        Each class without a `solver_name` will be treated as intermediate
+        and not added to REGISTRY / CLI commands
+      - Declare params as class attributes: param_name = SolverParam(...)
+      - Implement solve() method
+
+    The metaclass generates __init__ and registers the solver automatically.
+    """
+
+    context: SolverContext
+
+    @abstractmethod
+    def solve(self) -> BaseSolverOuput:
+        """Run the solver. Access self.context and self.<param>."""
+        ...

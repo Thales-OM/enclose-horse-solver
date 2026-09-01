@@ -1,9 +1,8 @@
 import click
-from typing import Tuple, Union
-from .solvers.standard import StandardSolver
+from .solvers import SOLVER_REGISTRY, DEFAULT_SOLVER_NAME
 from .solvers.base import SolverContext
-from .input.args import WallCostType
 from .input.grid import InputType, GridInput
+from .cmd_factory import make_solver_command
 
 INPUT_TYPE_CHOICES = ["string", "file", "stdin", "interactive", "auto"]
 
@@ -42,29 +41,15 @@ def cli(ctx: click.Context) -> None:
     type=click.IntRange(min=1),
     help="Maximum number of walls (required, > 0)",
 )
-@click.option(
-    "-c",
-    "--wall-cost",
-    default=0,
-    type=WallCostType(),
-    help="Wall cost: int >= 0 or comma-separated ints (default: 0)",
-)
 @click.pass_context
 def solve_group(
     ctx: click.Context,
     input_data: str | None,
     input_type: InputType,
     walls: int,
-    wall_cost: Union[int, Tuple[int, ...]],
 ) -> None:
     """Solve the enclose horse problem."""
     ctx.ensure_object(dict)
-
-    # Validate wall_cost length if it's a sequence
-    if isinstance(wall_cost, tuple) and len(wall_cost) != walls:
-        raise click.BadParameter(
-            f"wall-cost length ({len(wall_cost)}) must equal walls ({walls})"
-        )
 
     # Build GridInput with explicit mode
     try:
@@ -76,19 +61,25 @@ def solve_group(
     ctx.obj["grid_input"] = grid_input
     ctx.obj["input_type"] = input_type
     ctx.obj["walls"] = walls
-    ctx.obj["wall_cost"] = wall_cost
 
     if ctx.invoked_subcommand is not None:
         return
 
-    solution = StandardSolver().solve(
-        context=SolverContext(
-            grid_rows=grid_input.iter_rows(), max_walls=walls, wall_costs=wall_cost
-        )
+    # Run default solver
+    default_cls = SOLVER_REGISTRY[DEFAULT_SOLVER_NAME]
+    solver_context = SolverContext(
+        grid_rows=grid_input.iter_rows(),
+        max_walls=walls,
     )
+    default_solver = default_cls(context=solver_context)
+    solution = default_solver.solve()
 
     click.echo(str(solution))
 
+
+# Register all solvers as subcommands
+for solver_name in SOLVER_REGISTRY:
+    solve_group.add_command(make_solver_command(solver_name), solver_name)
 
 if __name__ == "__main__":
     cli()

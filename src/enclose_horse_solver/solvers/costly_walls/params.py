@@ -2,8 +2,12 @@ import click
 from typing import Tuple
 
 
-class WallCostType(click.ParamType):  # type: ignore[type-arg]
-    """Parses wall cost as int or comma-separated ints."""
+class WallCostType(click.ParamType[int | Tuple[int, ...]]):
+    """
+    Parses wall cost as int or comma-separated ints.
+    Allows single per-wall cost, or a somma-separated
+        sequence of marginal costs for each subsequent wall.
+    """
 
     name = "wall_cost"
 

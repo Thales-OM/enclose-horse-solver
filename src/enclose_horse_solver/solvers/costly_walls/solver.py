@@ -1,44 +1,36 @@
-from typing import Dict, Tuple, Set, List, Sequence
-from dataclasses import dataclass, field
+from typing import Sequence, List, Tuple, Dict
 import itertools
-from ..base import BaseSolver
-from .grid import GridCell, GridCellType
-from .optimizer import solve_weighted_enclose_horse
-from .output import StandardSolverOutput
+import click
+from ..base import BaseSolver, SolverParam
+from ..standard.grid import GridCellType, GridCell
+from ..standard.solver import GridSummary
+from .params import WallCostType
+from .output import CostlyWallsSolverOutput
+from .optimizer import solve_costly_walls_problem
 
 
-@dataclass
-class GridSummary:
-    grid_width: int
-    grid_height: int
-    grid: Sequence[Sequence[Tuple[GridCellType, int | None]]] | None = None
-    horse_pos: Tuple[int, int] | None = None
-    portal_groups: Dict[int, Set[Tuple[int, int]]] = field(default_factory=dict)
-    custom_enclosure_points: Dict[Tuple[int, int], int] = field(default_factory=dict)
-    cannot_place_walls: List[Tuple[int, int]] = field(default_factory=list)
-    not_enclosable: List[Tuple[int, int]] = field(default_factory=list)
+class CostlyWallsSolver(BaseSolver, solver_name="costly-walls"):
+    wall_cost: int | Sequence[int] = SolverParam(
+        "-c",
+        "--wall-cost",
+        type=WallCostType(),
+        default=6,
+        help="Wall cost: int >= 0 or comma-separated ints (default: 6)",
+        required=True,
+    )
 
-    def final_validation(self) -> None:
-        if self.grid is None:
-            raise ValueError("No Grid has been scanned. Empty Grid provided?")
-        if self.grid_width <= 0:
-            raise ValueError("Supplied Grid width <= 0")
-        if self.grid_height <= 0:
-            raise ValueError("Supplied Grid height <= 0")
-        if self.horse_pos is None:
-            raise ValueError("No horse found on the Grid")
-        for portal_idx, portal_group in self.portal_groups.items():
-            if len(portal_group) == 1:
-                raise ValueError(
-                    f"Portal without a pair at symbol = {portal_idx}, "
-                    f"coordinates = {next(iter(portal_group))}"
-                )
+    def solve(self) -> CostlyWallsSolverOutput:
+        # TODO: move validation outside from .solve() logic
+        # Validate wall_cost length if it's a sequence
+        if (
+            isinstance(self.wall_cost, tuple)
+            and len(self.wall_cost) != self.context.max_walls
+        ):
+            raise click.BadParameter(
+                f"wall-cost length ({len(self.wall_cost)}) must equal "
+                f"walls ({self.context.max_walls})"
+            )
 
-
-class StandardSolver(BaseSolver, solver_name="standard"):
-    """Solve a standard enclose.horse problem"""
-
-    def solve(self) -> StandardSolverOutput:
         summary = GridSummary(grid_width=-1, grid_height=0)
         grid: List[List[Tuple[GridCellType, int | None]]] = []
 
@@ -93,18 +85,19 @@ class StandardSolver(BaseSolver, solver_name="standard"):
             for start_portal, end_portal in itertools.permutations(portal_group, 2):
                 portal_map.setdefault(start_portal, list()).append(end_portal)
 
-        optimizer_result = solve_weighted_enclose_horse(
+        optimizer_result = solve_costly_walls_problem(
             grid_width=summary.grid_width,
             grid_height=summary.grid_height,
             horse_pos=summary.horse_pos,  # type: ignore[arg-type]
             max_walls=self.context.max_walls,
+            wall_costs=self.wall_cost,
             cannot_place_walls=summary.cannot_place_walls,
             not_enclosable=summary.not_enclosable,
             enclosure_weights=summary.custom_enclosure_points,
             non_neighbour_movements=portal_map,
         )
 
-        return StandardSolverOutput(
+        return CostlyWallsSolverOutput(
             success=optimizer_result.status == 1,
             max_score=optimizer_result.max_score,
             walls_to_place=optimizer_result.walls_to_place,
