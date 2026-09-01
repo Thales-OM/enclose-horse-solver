@@ -19,13 +19,14 @@ TILE_VALUE = {"g": 1, "h": 1, "c": 4, "a": 11, "b": -4}
 
 def load_puzzle(puzzle_number: int) -> Tuple[List[List[str]], int]:
     """Load a puzzle's grid and its wall budget from the project-root files."""
-    root = Path(__file__).resolve().parents[1]
+    tests_dir = Path(__file__).resolve().parent
+    assets_dir = tests_dir / "assets"
     grid = [
         line.split()
-        for line in (root / f"test{puzzle_number}.txt").read_text().splitlines()
+        for line in (assets_dir / f"test{puzzle_number}.txt").read_text().splitlines()
         if line.strip()
     ]
-    wall_budget = int((root / f"walls{puzzle_number}.txt").read_text().strip())
+    wall_budget = int((assets_dir / f"walls{puzzle_number}.txt").read_text().strip())
     return grid, wall_budget
 
 

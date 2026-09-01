@@ -23,6 +23,7 @@ from .helpers import (
 # Golden best scores for each bundled puzzle (see tests/README in docs).
 PUZZLES = [
     pytest.param(1, 56, id="test1"),
+    pytest.param(2, 20, id="test2"),
     pytest.param(3, 82, id="test3"),
     pytest.param(4, 66, id="test4"),
     pytest.param(5, 55, id="test5"),
